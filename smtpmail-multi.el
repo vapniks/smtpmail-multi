@@ -39,28 +39,25 @@
 
 ;;; Commentary: 
 ;;
+;; Bitcoin donations gratefully accepted: 1BFHneKYeXu3cXUQow2GCzsDcV2vv1Kvrt
 ;;
-;; How to create documentation and distribute package:
-;;
-;;     1) Remember to add ;;;###autoload magic cookies if possible
-;;     2) Generate a bitcoin address for donations with shell command: bitcoin getaccountaddress smtpmail-multi
-;;        and place address after "Commentary:" above.
-;;     3) Use org-readme-top-header-to-readme to create initial Readme.org file.
-;;     4) Use M-x auto-document to insert descriptions of commands and documents
-;;     5) Create documentation in the Readme.org file:
-;;        - Use org-mode features for structuring the data.
-;;        - Divide the commands into different categories and create headings
-;;          containing org lists of the commands in each category.
-;;        - Create headings with any other extra information if needed (e.g. customization).
-;;     6) In this buffer use org-readme-to-commentary to fill Commentary section with
-;;        documentation from Readme.org file.
-;;     7) Make any necessary adjustments to the documentation in this file (e.g. remove the installation
-;;        and customization sections added in previous step since these should already be present).
-;;     8) Use org-readme-marmalade-post and org-readme-convert-to-emacswiki to post
-;;        the library on Marmalade and EmacsWiki respectively.
-;; 
-;;;;
+;; This library allows you to use different SMTP accounts for sending emails.
+;; The SMTP account selected can depend upon the value of the "From" header of the email,
+;; or any other header you choose, or even on the results of a predicate function of your choice.
 
+;;; Usage:
+;;
+;; First you need to add some smtp account details to `smtpmail-multi-accounts' (see the documentation
+;; of this variable for more details).
+;; Next you may need to set authentication information (usernames and passwords) with `smtpmail-auth-credentials'
+;; The `smtpmail-auth-credentials' variable can either be a list of hostname, port, username
+;; and password tuples, or the path to an authinfo file containing this information (recommended).
+;; For more info on `smtpmail-auth-credentials' see the info page for smtpmail, or view it online
+;; here: http://www.gnu.org/software/emacs/manual/html_node/smtpmail/
+;; Then you must decide when to use each smtp account and customize `smtpmail-multi-associations'
+;; (see the documentation for further details).
+;; Finally you must set the values of `send-mail-function' (if you use `mail-mode') and/or
+;; `message-send-mail-function' (if you use gnus or `message-mode') to `smtpmail-multi-send-it'.
 
 ;;; Installation:
 ;;
@@ -74,14 +71,17 @@
 ;;
 ;; (require 'smtpmail-multi)
 
-;;; Customize:
+;;; Customizable Options:
 ;;
-;; To automatically insert descriptions of customizable variables defined in this buffer
-;; place point at the beginning of the next line and do: M-x auto-document
-
+;; Below are customizable option list:
+;;
+;;  `smtpmail-multi-accounts'
+;;    List of SMTP mail accounts.
+;;  `smtpmail-multi-associations'
+;;    List of rules for associating emails with SMTP accounts in `smtpmail-multi-accounts'.
 ;;
 ;; All of the above can customized by:
-;;      M-x customize-group RET smtpmail-multi RET
+;;      M-x customize-group RET smtpmail RET
 ;;
 
 ;;; Change log:
@@ -92,12 +92,16 @@
 
 ;;; Acknowledgements:
 ;;
-;; 
+;; Volkan Yazici, Marcus Harnisch, Abhijeet Dhadge and others who contributed to the following
+;; emacswiki page: http://www.emacswiki.org/emacs-en/MultipleSMTPAccounts
 ;;
 
 ;;; TODO
 ;;
-;; 
+;;
+
+;; NOTE: documentation about the emacs smtp library can be found in the SMTP info page
+;; (/usr/share/info/emacs/smtpmail.gz)
 ;;
 
 ;;; Require
@@ -105,30 +109,72 @@
 
 ;;; Code:
 
-(defcustom smtpmail-multi-accounts
-  "List of SMTP mail accounts."
+(defcustom smtpmail-multi-accounts nil
+  "List of SMTP mail accounts.
+Each element should be a cons cell whose first element is a symbol label for the account,
+and whose second element is a list containing the following items in order: user server port"
+  :type '(alist :key-type (symbol :tag "Name" :help-echo "A symbol name for this SMTP account")
+                :value-type (list (string :tag "User")
+                                  (string :tag "Server")
+                                  (integer :tag "Port")))
+  :group 'smtpmail)
+
+(defcustom smtpmail-multi-associations nil
+  "List of rules for associating emails with SMTP accounts in `smtpmail-multi-accounts'.
+The first element of each item in the list is used to indicate whether the mail matches this the item or not.
+It can be either a string to match the \"From\" header, a cons cell whose car is a header name and whose cdr
+is a string to match that header, or a function to be called from within the mail buffer and which should return
+true if the mail matches.
+The subsequent elements of the list item are symbols indicating which smtp accounts to try (see `smtpmail-multi-accounts').
+These different smtp accounts will be tried sequentially until the mail is successfully sent."
+  :type '(repeat (cons (choice (regexp :tag "Regexp" :help-echo "A regular expression to match the \"From\" header")
+                               (cons (string :tag "Header name" :help-echo "Name of header to match")
+                                     (regexp :tag "Match regexp" :help-echo "A regular expression to match the header"))
+                               (function :tag "Predicate" :help-echo "A predicate function that returns non-nil for matching emails"))
+                       (repeat (symbol :tag "SMTP Account" :help-echo "A symbol associated with an SMTP account listed in `smtp-multi-accounts'"))))
   :group 'smtpmail)
 
 (setq smtpmail-stream-type 'ssl) ;; If using TLS/SSL.  Use C-h v smtpmail-stream-type RET to see possible values
-(setq smtp-accounts
-      '(("aa@bb.cc" "John Doe" "default.server.com")
-        ("qq@rr.ss" "Mary Johnson" "server2.com")))
 
-(defun my-change-smtp ()
-  (save-excursion
-    (loop with from = (save-restriction
-                        (message-narrow-to-headers)
-                        (message-fetch-field "from"))
-          for (addr fname server) in smtp-accounts
-          when (string-match addr from)
-          do (setq user-mail-address addr
-                   user-full-name fname
-                   smtpmail-smtp-user addr
-                   smtpmail-smtp-server server))))
-  
+
+(defun smtpmail-multi-change account
+  "Change the smtp settings to match the settings in `smtpmail-multi-accounts' associated with symbol ACCOUNT."
+  (let ((settings (cdr (assoc account smtpmail-multi-accounts))))
+    (setq user-mail-address (first settings)
+          user-full-name (second settings)
+          smtpmail-smtp-user (first settings)
+          smtpmail-smtp-server (second settings)
+          smtpmail-smtp-service (third settings) ; port (an integer or a string)
+          smtpmail-auth-credentials ; netrc file containing username and password
+          smtpmail-starttls-credentials
+          smtpmail-local-domain
+          smtpmail-sendto-domain
+          
+          )))
+
+(defun smtpmail-multi-send-it nil
+  "Send mail using smtp server selected by the `smtpmail-multi-select' function."
+  (let ((accounts
+         (loop with from = (save-restriction
+                             (message-narrow-to-headers)
+                             (message-fetch-field "from"))
+               for (match . accounts) in smtpmail-multi-associations
+               if (or (and (stringp match)
+                           (string-match match from))
+                      (and (functionp match)
+                           (funcall match))
+                      (and (consp match)
+                           (string-match (cdr match) (message-fetch-field (car match)))))
+               return accounts))
+        (notsent t))
+    (while (and accounts notsent)
+      (smtpmail-multi-change (car accounts))
+      (funcall message-send-mail-function)
+      (setq accounts (cdr accounts)))))
+
 (defadvice smtpmail-via-smtp
   (before change-smtp-by-message-from-field (recipient buffer &optional ask) activate)
-  (with-current-buffer buffer (my-change-smtp)))
+  (with-current-buffer buffer (smtpmail-multi-change)))
   
 (setq user-mail-address "aa@bb.cc"
       user-full-name "John Doe"
