@@ -112,11 +112,42 @@
 (defcustom smtpmail-multi-accounts nil
   "List of SMTP mail accounts.
 Each element should be a cons cell whose first element is a symbol label for the account,
-and whose second element is a list containing the following items in order: user server port"
+and whose second element is a list containing the following items in order:
+  Username - the value to use for `smtpmail-smtp-user' (which see)
+  Server - the value to use for `smtpmail-smtp-server'
+  Port - the value to use for `smtpmail-smtp-service'
+  MAIL FROM - if non-nil then `mail-specify-envelope-from' will be set to t,
+              and `mail-envelope-from' will be set to this value (either a mail
+              address string, or the symbol 'header).
+  Stream type - the value to use for `smtpmail-stream-type'
+  STARTTLS key - location of client key to use for STARTTLS authentication, or nil if none used
+                 (this is used to set the `smtpmail-starttls-credentials' variable)
+  STARTTLS certificate - location of certificate to use for STARTTLS authentication, or nil if none used
+                         (this is used to set the `smtpmail-starttls-credentials' variable)
+  Local hostname - the value to use for `smtpmail-local-domain'."
   :type '(alist :key-type (symbol :tag "Name" :help-echo "A symbol name for this SMTP account")
-                :value-type (list (string :tag "User")
+                :value-type (list :tag "Settings"
+                                  (string :tag "Username")
                                   (string :tag "Server")
-                                  (integer :tag "Port")))
+                                  (integer :tag "Port")
+                                  (choice :tag "MAIL FROM"
+                                   (const :tag "None" nil)
+                                   (const :tag "Use From header" 'header)
+                                   (string :tag "Specify address"))
+                                  (choice :tag "Stream type"
+                                          (const :tag "Upgrade to STARTTLS if possible" nil)
+                                          (const :tag "Always use STARTTLS" 'starttls)
+                                          (const :tag "Never use STARTTLS" 'plain)
+                                          (const :tag "Use TLS/SSL" 'ssl))
+                                  (choice :tag "STARTTLS key"
+                                          (const :tag "No STARTTLS client key" nil)
+                                          (string :tag "Client key"))
+                                  (choice :tag "STARTTLS certificate"
+                                          (const :tag "No STARTTLS client certificate" nil)
+                                          (string :tag "Client certificate"))
+                                  (choice :tag "Local hostname"
+                                          (const :tag "Default value" nil)
+                                          (string :tag "Specify local hostname"))))
   :group 'smtpmail)
 
 (defcustom smtpmail-multi-associations nil
@@ -134,23 +165,23 @@ These different smtp accounts will be tried sequentially until the mail is succe
                        (repeat (symbol :tag "SMTP Account" :help-echo "A symbol associated with an SMTP account listed in `smtp-multi-accounts'"))))
   :group 'smtpmail)
 
-(setq smtpmail-stream-type 'ssl) ;; If using TLS/SSL.  Use C-h v smtpmail-stream-type RET to see possible values
-
-
 (defun smtpmail-multi-change account
-  "Change the smtp settings to match the settings in `smtpmail-multi-accounts' associated with symbol ACCOUNT."
+  "Change the smtp settings to match the settings for ACCOUNT in `smtpmail-multi-accounts'."
   (let ((settings (cdr (assoc account smtpmail-multi-accounts))))
-    (setq user-mail-address (first settings)
-          user-full-name (second settings)
-          smtpmail-smtp-user (first settings)
-          smtpmail-smtp-server (second settings)
-          smtpmail-smtp-service (third settings) ; port (an integer or a string)
-          smtpmail-auth-credentials ; netrc file containing username and password
-          smtpmail-starttls-credentials
-          smtpmail-local-domain
-          smtpmail-sendto-domain
-          
-          )))
+    (if settings
+        (setq
+          user-full-name (nth 0 settings)
+          smtpmail-smtp-user (nth 0 settings)
+          smtpmail-smtp-server (nth 1 settings)
+          smtpmail-smtp-service (nth 2 settings) ; port (an integer or a string)
+          smtpmail-stream-type (nth 4 settings)
+          smtpmail-starttls-credentials (list (nth 1 settings) (nth 2 settings)
+                                              (nth 5 settings) (nth 6 settings))
+          smtpmail-local-domain (nth 7 settings))
+      (if (not (nth 3 settings))
+          (setq mail-specify-envelope-from nil)
+        (setq mail-specify-envelope-from t
+              mail-envelope-from (nth 3 settings))))))
 
 (defun smtpmail-multi-send-it nil
   "Send mail using smtp server selected by the `smtpmail-multi-select' function."
