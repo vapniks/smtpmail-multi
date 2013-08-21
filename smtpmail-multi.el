@@ -16,7 +16,7 @@
 ;;
 ;; Features that might be required by this library:
 ;;
-;; message smtpmail
+;; cl smtpmail 
 ;;
 
 ;;; This file is NOT part of GNU Emacs
@@ -100,12 +100,13 @@
 ;;
 ;;
 
-;; NOTE: documentation about the emacs smtp library can be found in the SMTP info page
-;; (/usr/share/info/emacs/smtpmail.gz)
+;; NOTE: documentation about the emacs smtp library can be found in the SMTP info page:
+;; http://www.gnu.org/software/emacs/manual/html_node/smtpmail/
 ;;
 
 ;;; Require
-(require 'cl)
+(eval-when-compile (require 'cl))
+(require 'smtpmail)
 
 ;;; Code:
 
@@ -169,49 +170,47 @@ These different smtp accounts will be tried sequentially until the mail is succe
   "Change the smtp settings to match the settings for ACCOUNT in `smtpmail-multi-accounts'."
   (let ((settings (cdr (assoc account smtpmail-multi-accounts))))
     (if settings
-        (setq
-          user-full-name (nth 0 settings)
-          smtpmail-smtp-user (nth 0 settings)
-          smtpmail-smtp-server (nth 1 settings)
-          smtpmail-smtp-service (nth 2 settings) ; port (an integer or a string)
-          smtpmail-stream-type (nth 4 settings)
-          smtpmail-starttls-credentials (list (nth 1 settings) (nth 2 settings)
-                                              (nth 5 settings) (nth 6 settings))
-          smtpmail-local-domain (nth 7 settings))
+        (setq smtpmail-smtp-user (nth 0 settings)
+              smtpmail-smtp-server (nth 1 settings)
+              smtpmail-smtp-service (nth 2 settings) ; port (an integer or a string)
+              smtpmail-stream-type (nth 4 settings)
+              smtpmail-starttls-credentials (list (nth 1 settings) (nth 2 settings)
+                                                  (nth 5 settings) (nth 6 settings))
+              smtpmail-local-domain (nth 7 settings))
       (if (not (nth 3 settings))
           (setq mail-specify-envelope-from nil)
         (setq mail-specify-envelope-from t
               mail-envelope-from (nth 3 settings))))))
 
+(defun smtpmail-multi-get-accounts nil
+  "Returns the SMTP accounts associated with the current email according to `smtpmail-multi-associations'.
+The account details associated with each account name are stored in `smtpmail-multi-accounts'."
+  (loop with from = (save-restriction
+                      (message-narrow-to-headers)
+                      (message-fetch-field "from"))
+        for (match . accounts) in smtpmail-multi-associations
+        if (or (and (stringp match)
+                    (string-match match from))
+               (and (functionp match)
+                    (funcall match))
+               (and (consp match)
+                    (string-match (cdr match) (message-fetch-field (car match)))))
+        return accounts))
+
 (defun smtpmail-multi-send-it nil
   "Send mail using smtp server selected by the `smtpmail-multi-select' function."
-  (let ((accounts
-         (loop with from = (save-restriction
-                             (message-narrow-to-headers)
-                             (message-fetch-field "from"))
-               for (match . accounts) in smtpmail-multi-associations
-               if (or (and (stringp match)
-                           (string-match match from))
-                      (and (functionp match)
-                           (funcall match))
-                      (and (consp match)
-                           (string-match (cdr match) (message-fetch-field (car match)))))
-               return accounts))
+  (let ((accounts (smtpmail-multi-get-accounts))
         (notsent t))
     (while (and accounts notsent)
       (smtpmail-multi-change (car accounts))
-      (funcall message-send-mail-function)
+      (funcall smtpmail-send-it)
       (setq accounts (cdr accounts)))))
 
-(defadvice smtpmail-via-smtp
-  (before change-smtp-by-message-from-field (recipient buffer &optional ask) activate)
-  (with-current-buffer buffer (smtpmail-multi-change)))
+;; (defadvice smtpmail-via-smtp
+;;   (before change-smtp-by-message-from-field (recipient buffer &optional ask) activate)
+;;   (with-current-buffer buffer
+;;     (smtpmail-multi-change (car (smtpmail-multi-get-accounts)))))
   
-(setq user-mail-address "aa@bb.cc"
-      user-full-name "John Doe"
-      smtpmail-smtp-server "default.server.com"
-      smtpmail-auth-credentials (expand-file-name "~/.authinfo"))
-
 (provide 'smtpmail-multi)
 
 ;; (magit-push)
