@@ -79,6 +79,8 @@
 ;;    List of SMTP mail accounts.
 ;;  `smtpmail-multi-associations'
 ;;    List of rules for associating emails with SMTP accounts in `smtpmail-multi-accounts'.
+;;  `smtpmail-multi-default-account'
+;;    The account to use when there are no accounts associated with the current email.
 ;;
 ;; All of the above can customized by:
 ;;      M-x customize-group RET smtpmail RET
@@ -130,16 +132,18 @@ and whose second element is a list containing the following items in order:
                 :value-type (list :tag "Settings"
                                   (string :tag "Username")
                                   (string :tag "Server")
-                                  (integer :tag "Port")
+                                  (choice :tag "Port"
+                                          (integer :tag "Port number")
+                                          (string :tag "Port name"))
                                   (choice :tag "MAIL FROM"
                                    (const :tag "None" nil)
-                                   (const :tag "Use From header" 'header)
+                                   (const :tag "Use From header" header)
                                    (string :tag "Specify address"))
                                   (choice :tag "Stream type"
                                           (const :tag "Upgrade to STARTTLS if possible" nil)
-                                          (const :tag "Always use STARTTLS" 'starttls)
-                                          (const :tag "Never use STARTTLS" 'plain)
-                                          (const :tag "Use TLS/SSL" 'ssl))
+                                          (const :tag "Always use STARTTLS" starttls)
+                                          (const :tag "Never use STARTTLS" plain)
+                                          (const :tag "Use TLS/SSL" ssl))
                                   (choice :tag "STARTTLS key"
                                           (const :tag "No STARTTLS client key" nil)
                                           (string :tag "Client key"))
@@ -149,6 +153,12 @@ and whose second element is a list containing the following items in order:
                                   (choice :tag "Local hostname"
                                           (const :tag "Default value" nil)
                                           (string :tag "Specify local hostname"))))
+  :group 'smtpmail)
+
+(defcustom smtpmail-multi-default-account nil
+  "The account to use when there are no accounts associated with the current email.
+This should be the car of an element in `smtpmail-multi-accounts'."
+  :type 'symbol
   :group 'smtpmail)
 
 (defcustom smtpmail-multi-associations nil
@@ -166,7 +176,7 @@ These different smtp accounts will be tried sequentially until the mail is succe
                        (repeat (symbol :tag "SMTP Account" :help-echo "A symbol associated with an SMTP account listed in `smtp-multi-accounts'"))))
   :group 'smtpmail)
 
-(defun smtpmail-multi-change account
+(defun smtpmail-multi-change (account)
   "Change the smtp settings to match the settings for ACCOUNT in `smtpmail-multi-accounts'."
   (let ((settings (cdr (assoc account smtpmail-multi-accounts))))
     (if settings
@@ -183,34 +193,44 @@ These different smtp accounts will be tried sequentially until the mail is succe
               mail-envelope-from (nth 3 settings))))))
 
 (defun smtpmail-multi-get-accounts nil
-  "Returns the SMTP accounts associated with the current email according to `smtpmail-multi-associations'.
-The account details associated with each account name are stored in `smtpmail-multi-accounts'."
-  (loop with from = (save-restriction
-                      (message-narrow-to-headers)
-                      (message-fetch-field "from"))
-        for (match . accounts) in smtpmail-multi-associations
-        if (or (and (stringp match)
-                    (string-match match from))
-               (and (functionp match)
-                    (funcall match))
-               (and (consp match)
-                    (string-match (cdr match) (message-fetch-field (car match)))))
-        return accounts))
+  "Returns the SMTP accounts associated with the current buffer according to `smtpmail-multi-associations'.
+The account details associated with each account name are stored in `smtpmail-multi-accounts'.
+If there is no SMTP account associated with the current buffer, return `smtpmail-multi-default-account'
+instead."
+  (or (loop with from = (save-restriction
+                          (message-narrow-to-headers)
+                          (message-fetch-field "from"))
+            for (match . accounts) in smtpmail-multi-associations
+            if (or (and (stringp match)
+                        (string-match match from))
+                   (and (functionp match)
+                        (funcall match))
+                   (and (consp match)
+                        (string-match (cdr match) (message-fetch-field (car match)))))
+            return accounts)
+      smtpmail-multi-default-account))
 
+;; Set message-send-mail-function to this function
 (defun smtpmail-multi-send-it nil
   "Send mail using smtp server selected by the `smtpmail-multi-select' function."
   (let ((accounts (smtpmail-multi-get-accounts))
         (notsent t))
-    (while (and accounts notsent)
-      (smtpmail-multi-change (car accounts))
-      (funcall smtpmail-send-it)
-      (setq accounts (cdr accounts)))))
+    (if accounts
+        (while (and accounts notsent)
+          (smtpmail-multi-change (car accounts))
+          (condition-case err
+              (progn (funcall 'smtpmail-send-it)
+                     (setq notsent nil))
+            (error (setq notsent t)))
+          (setq accounts (cdr accounts)))
+      (error "No SMTP accounts associated with current buffer, and no default account set"))
+    (if notsent (error "Mail not sent"))))
 
 ;; (defadvice smtpmail-via-smtp
 ;;   (before change-smtp-by-message-from-field (recipient buffer &optional ask) activate)
 ;;   (with-current-buffer buffer
 ;;     (smtpmail-multi-change (car (smtpmail-multi-get-accounts)))))
-  
+
 (provide 'smtpmail-multi)
 
 ;; (magit-push)
