@@ -1,0 +1,40 @@
+* Library Information
+ Use different smtp servers for sending mail
+
+ - Filename :: [[file:mark.el][smtpmail-multi.el]]
+ - Description ::  Use different smtp servers for sending mail
+ - Author :: Joe Bloggs <vapniks@yahoo.com>
+ - Maintainer :: Joe Bloggs <vapniks@yahoo.com>
+ - Copyright (c) 2013 Joe Bloggs
+ - Created :: 2013-08-19 02:06:43
+ - Version :: 0.2
+ - Last-Updated :: 2013-08-26 15:24:00
+ -           By :: Joe Bloggs
+ - URL :: https://github.com/vapniks/show-marks
+ - Keywords :: convenience
+ - Compatibility :: GNU Emacs 24.3.1
+ - Package-Requires :: 
+
+* Possible Dependencies
+smtpmail cl
+* Commentary
+First you need to add some smtp account details to `smtpmail-multi-accounts' (see the documentation
+of this variable for more details).
+Next you may need to set authentication information (usernames and passwords) with `smtpmail-auth-credentials'
+The `smtpmail-auth-credentials' variable can either be a list of hostname, port, username
+and password tuples, or the path to an authinfo file containing this information (recommended).
+For more info on `smtpmail-auth-credentials' see the info page for smtpmail, or view it online
+here: http://www.gnu.org/software/emacs/manual/html_node/smtpmail/
+Then you must decide when to use each smtp account and customize `smtpmail-multi-associations'
+(see the documentation for further details).
+Finally you must set the values of `send-mail-function' (if you use `mail-mode') and/or
+`message-send-mail-function' (if you use gnus or `message-mode') to `smtpmail-multi-send-it'.
+
+* Installation
+
+ - If you have [[http://www.marmalade-repo.org/][marmalade-repo.org]], this smtpmail-multi is part of the emacs packages you can install.  
+   Just type M-x package-install smtpmail-multi marmalade 
+ - Otherwise download the library from emacswiki, and put it in a directory in the emacs load path, 
+   like ~/.emacs.d
+ - Add (require 'smtpmail-multi) in your ~/.emacs file
+
