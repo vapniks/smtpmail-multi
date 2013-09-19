@@ -58,6 +58,9 @@
 ;; (see the documentation for further details).
 ;; Finally you must set the values of `send-mail-function' (if you use `mail-mode') and/or
 ;; `message-send-mail-function' (if you use gnus or `message-mode') to `smtpmail-multi-send-it'.
+;;
+;; Note: If you install this library through the emacs package manager you need to run (require 'smtpmail-multi)
+;; first before you can customize `smtpmail-multi-accounts' and `smtpmail-multi-associations'.
 
 ;;; Installation:
 ;;
