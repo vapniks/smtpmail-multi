@@ -214,7 +214,7 @@ instead."
                    (and (consp match)
                         (string-match (cdr match) (message-fetch-field (car match)))))
             return accounts)
-      smtpmail-multi-default-account))
+      (list smtpmail-multi-default-account)))
 
 ;; Set message-send-mail-function to this function
 ;;;###autoload
