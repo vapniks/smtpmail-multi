@@ -59,9 +59,15 @@
 ;; Finally you must set the values of `send-mail-function' (if you use `mail-mode') and/or
 ;; `message-send-mail-function' (if you use gnus or `message-mode') to `smtpmail-multi-send-it'.
 ;;
-;; Note: If you install this library through the emacs package manager you need to run (require 'smtpmail-multi)
+;; Note: if you install this library through the emacs package manager you need to run (require 'smtpmail-multi)
 ;; first before you can customize `smtpmail-multi-accounts' and `smtpmail-multi-associations'. Then you can
 ;; access the customization buffer for both these variables with: M-x customize-group smtpmail
+;;
+;; Further notes: if you are having problems sending emails it may be due to certain email headers being rejected
+;; by the SMTP server. You can check by setting `smtpmail-debug-info' to t, sending an email, and checking the
+;; *trace of SMTP session to smtp.??.??* buffer. Many SMTP servers will reject emails send from email addresses
+;; not associated with that server (e.g. sending an email via smtp.mail.yahoo.com from your gmail address).
+;; Also sometimes the problem is with headers refering to previous emails (e.g. the "References:" and "In-Reply-To:" headers).
 
 ;;; Installation:
 ;;
