@@ -18,17 +18,18 @@
 * Possible Dependencies
 smtpmail cl
 * Commentary
-First you need to add some smtp account details to `smtpmail-multi-accounts' (see the documentation
+First you need to add some smtp account details to ~smtpmail-multi-accounts~ (see the documentation
 of this variable for more details).
-Next you may need to set authentication information (usernames and passwords) with `smtpmail-auth-credentials'
-The `smtpmail-auth-credentials' variable can either be a list of hostname, port, username
+
+Next you may need to set authentication information (usernames and passwords) with ~smtpmail-auth-credentials~. 
+The ~smtpmail-auth-credentials~ variable can either be a list of hostname, port, username
 and password tuples, or the path to an authinfo file containing this information (recommended).
-For more info on `smtpmail-auth-credentials' see the info page for smtpmail, or view it online
+For more info on ~smtpmail-auth-credentials~ see the info page for smtpmail, or view it online
 here: http://www.gnu.org/software/emacs/manual/html_node/smtpmail/
-Then you must decide when to use each smtp account and customize `smtpmail-multi-associations'
+Then you must decide when to use each smtp account and customize ~smtpmail-multi-associations~
 (see the documentation for further details).
-Finally you must set the values of `send-mail-function' (if you use `mail-mode') and/or
-`message-send-mail-function' (if you use gnus or `message-mode') to `smtpmail-multi-send-it'.
+Finally you must set the values of ~send-mail-function~ (if you use ~mail-mode~) and/or
+~message-send-mail-function~ (if you use gnus or ~message-mode~) to ~smtpmail-multi-send-it~.
 
 * Installation
 
