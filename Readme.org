@@ -10,7 +10,7 @@
  - Version :: 0.2
  - Last-Updated :: 2013-08-26 15:24:00
  -           By :: Joe Bloggs
- - URL :: https://github.com/vapniks/show-marks
+ - URL :: https://github.com/vapniks/smtpmail-multi
  - Keywords :: convenience
  - Compatibility :: GNU Emacs 24.3.1
  - Package-Requires :: 
