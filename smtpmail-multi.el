@@ -7,16 +7,16 @@
 ;; Copyleft (Ↄ) 2013, Joe Bloggs, all rites reversed.
 ;; Created: 2013-08-19 02:06:43
 ;; Version: 0.6
-;; Last-Updated: 2013-09-19 15:24:00
-;;           By: Joe Bloggs
+;; Last-Updated: 2020-10-01 00:03:10
+;;           By: Lockywolf
 ;; URL: https://github.com/vapniks/smtpmail-multi
 ;; Keywords: comm
 ;; Compatibility: GNU Emacs 24.3.1
-;; Package-Requires: 
+;; Package-Requires:
 ;;
 ;; Features that might be required by this library:
 ;;
-;; cl smtpmail 
+;; cl-macs smtpmail
 ;;
 
 ;;; This file is NOT part of GNU Emacs
@@ -117,7 +117,7 @@
 ;;
 
 ;;; Require
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-macs))
 (require 'smtpmail)
 
 ;;; Code:
@@ -209,7 +209,7 @@ These different smtp accounts will be tried sequentially until the mail is succe
 The account details associated with each account name are stored in `smtpmail-multi-accounts'.
 If there is no SMTP account associated with the current buffer, return `smtpmail-multi-default-account'
 instead."
-  (or (loop with from = (save-restriction
+  (or (cl-loop with from = (save-restriction
                           (message-narrow-to-headers)
                           (message-fetch-field "from"))
             for (match . accounts) in smtpmail-multi-associations
